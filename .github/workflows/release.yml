@@ -1,0 +1,64 @@
+name: release
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+jobs:
+  build:
+    name: build
+    runs-on: macos-11
+    permissions:
+      contents: read
+      packages: write
+    timeout-minutes: 40
+    steps:
+      - name: Show host info
+        run: |
+          uname -a
+          sw_vers
+          ifconfig
+      - name: Install build dependencies of VDE
+        run: brew install autoconf automake
+      - name: Build and Make VDE
+        run: |
+          git clone https://github.com/virtualsquare/vde-2.git /tmp/vde-2
+          cd /tmp/vde-2
+          # Dec 12, 2021
+          git checkout 74278b9b7cf816f0356181f387012fdeb6d65b52
+          autoreconf -fis
+          export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          export CC=$(xcrun --sdk macosx --find clang)
+          export CXX=$(xcrun --sdk macosx --find clang++)
+          export CFLAGS="-arch x86_64 -arch arm64e -isysroot $SDKROOT -Wno-error=implicit-function-declaration"
+          export CXXFLAGS=$CFLAGS
+          ./configure --prefix=/opt/vde
+          make PREFIX=/opt/vde
+          sudo make PREFIX=/opt/vde install
+      - name: Build and Make vde_vmnet
+        run: |
+          git clone https://github.com/lima-vm/vde_vmnet.git /tmp/vde_vmnet
+          cd /tmp/vde_vmnet
+          make PREFIX=/opt/vde
+          sudo make PREFIX=/opt/vde install
+      - name: Create release tarball
+        run: |
+          sudo tar zcf vde_vmnet.tar.gz /opt/vde
+      - name: Create Release
+        id: create-github-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${GITHUB_REF##*/}
+          release_name: Release ${GITHUB_REF##*/}
+          draft: false
+          prerelease: false
+      - name: Upload release tarball
+        uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create-github-release.outputs.upload_url }}
+            asset_path: vde_vmnet.tar.gz
+            asset_name: vde_vmnet-${GITHUB_REF##*/}.tar.gz
+            asset_content_type: application/tar+gzip
