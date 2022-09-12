@@ -1,3 +1,7 @@
+> **Warning**
+> `vde_vmnet` was deprecated and succeeded by `socket_vmnet`: https://github.com/lima-vm/socket_vmnet
+
+- - -
 # vde_vmnet: vmnet.framework support for rootless QEMU
 
 `vde_vmnet` provides [vmnet.framework](https://developer.apple.com/documentation/vmnet) support for VDE applications such as QEMU.
